@@ -1,170 +1,174 @@
-// convert.js
 const fs = require('fs');
 const path = require('path');
-const babelParser = require('@babel/parser');
-const traverse = require('@babel/traverse').default;
-const generate = require('@babel/generator').default;
 
-// Read the input JSX file (adjust path as needed)
-const inputPath = path.resolve(__dirname, 'input.jsx');
-const jsxCode = fs.readFileSync(inputPath, 'utf-8');
+const inputJSXPath = path.join(__dirname, 'input.jsx'); // Your Figma JSX input
+const outputJSXPath = path.join(__dirname, 'ConvertedComponent.jsx');
+const outputCSSPath = path.join(__dirname, 'styles.css');
 
-// Parse JSX code to AST
-const ast = babelParser.parse(jsxCode, {
-    sourceType: 'module',
-    plugins: ['jsx'],
-});
-
-// Prepare to collect styles
-let styleIndex = 0;
-const stylesMap = new Map();
-
-// Helper: convert JS style object keys to CSS property names
-function toKebabCase(str) {
-    return str.replace(/[A-Z]/g, (match) => '-' + match.toLowerCase());
+const cssRaw = `
+.style_0 {
+width: 100%;
+height: 100vh;
+position: relative;
+background: #FFF4F8;
+overflow: hidden;
 }
 
-// Traverse AST, find inline style attributes and replace them with classNames
-traverse(ast, {
-    JSXAttribute(path) {
-        if (path.node.name.name === 'style') {
-            const styleValue = path.node.value.expression; // object expression
-
-            if (styleValue.type === 'ObjectExpression') {
-                // Convert style object to CSS string
-                let cssString = '';
-                styleValue.properties.forEach((prop) => {
-                    const key = prop.key.name || prop.key.value;
-                    let value = '';
-                    if (prop.value.type === 'StringLiteral') {
-                        value = prop.value.value;
-                    } else if (prop.value.type === 'NumericLiteral') {
-                        value = prop.value.value.toString();
-                    } else {
-                        value = generate(prop.value).code;
-                    }
-                    cssString += `${toKebabCase(key)}: ${value};\n`;
-                });
-
-                // Deduplicate styles
-                let className = null;
-                for (const [key, val] of stylesMap.entries()) {
-                    if (val === cssString) {
-                        className = key;
-                        break;
-                    }
-                }
-                if (!className) {
-                    className = `style_${styleIndex++}`;
-                    stylesMap.set(className, cssString);
-                }
-
-                // Replace inline style attribute with className attribute
-                path.replaceWithSourceString(`className="${className}"`);
-            }
-        }
-    },
-});
-
-// Extract JSX from default export function if present
-let returnJSX = null;
-traverse(ast, {
-    ExportDefaultDeclaration(path) {
-        const decl = path.node.declaration;
-
-        if (decl.type === 'FunctionDeclaration') {
-            path.traverse({
-                ReturnStatement(returnPath) {
-                    if (
-                        returnPath.node.argument &&
-                        (returnPath.node.argument.type === 'JSXElement' ||
-                            returnPath.node.argument.type === 'JSXFragment')
-                    ) {
-                        returnJSX = returnPath.node.argument;
-                    }
-                },
-            });
-        } else if (decl.type === 'ArrowFunctionExpression') {
-            if (decl.body.type === 'JSXElement' || decl.body.type === 'JSXFragment') {
-                returnJSX = decl.body;
-            } else if (decl.body.type === 'BlockStatement') {
-                decl.body.body.forEach((stmt) => {
-                    if (
-                        stmt.type === 'ReturnStatement' &&
-                        (stmt.argument.type === 'JSXElement' || stmt.argument.type === 'JSXFragment')
-                    ) {
-                        returnJSX = stmt.argument;
-                    }
-                });
-            }
-        }
-    },
-});
-
-// If no default export function with JSX found, try to extract any JSX from file (handle raw JSX-only input)
-if (!returnJSX) {
-    traverse(ast, {
-        JSXElement(path) {
-            // Take the first JSX element found at root level (you can tweak logic here)
-            if (!returnJSX) {
-                returnJSX = path.node;
-            }
-        },
-    });
+.style_1 {
+width: 1440px;
+padding-top: 40px;
+padding-bottom: 24px;
+padding-left: 64px;
+padding-right: 64px;
+left: 288px;
+top: 120px;
+position: absolute;
+justify-content: flex-start;
+align-items: flex-start;
+display: inline-flex;
+flex-direction: column;
+gap: 10px;
 }
 
-if (!returnJSX) {
-    console.error('Could not find JSX in the input file.');
-    process.exit(1);
+.style_2 {
+width: 1171px;
+justify-content: flex-start;
+align-items: center;
+display: flex;
+gap: 10px;
 }
 
-// Generate JSX code only for the returned JSX element
-const jsxOnlyCode = generate(returnJSX, { retainLines: true }).code;
-
-// Generate CSS output
-const cssLines = [];
-for (const [className, cssContent] of stylesMap.entries()) {
-    cssLines.push(`.${className} {\n${cssContent}}\n`);
-}
-const cssOutput = cssLines.join('\n');
-
-const outputDir = path.resolve(__dirname, 'output');
-if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir);
+.style_3 {
+color: #2C2C2C;
+font-size: 32px;
+font-family: Poppins;
+font-weight: 600;
+word-wrap: break-word;
 }
 
-// Write CSS file
-fs.writeFileSync(path.join(outputDir, 'styles.css'), cssOutput, 'utf-8');
+.style_4 {
+width: 1440px;
+padding-top: 24px;
+padding-bottom: 32px;
+left: 288px;
+top: 232px;
+position: absolute;
+flex-direction: column;
+justify-content: flex-start;
+align-items: flex-start;
+gap: 36px;
+display: inline-flex;
+}
 
-// Wrap JSX in a proper React component function and export default
-const componentCode = `import React from 'react';
+.style_5 {
+width: 1440px;
+padding-left: 64px;
+padding-right: 64px;
+justify-content: flex-start;
+align-items: center;
+gap: 51px;
+display: inline-flex;
+}
+
+.style_6 {
+width: 403px;
+padding-top: 32px;
+padding-bottom: 32px;
+padding-left: 32px;
+padding-right: 32px;
+background: white;
+box-shadow: 0px 6px 6px rgba(0, 0, 0, 0.25);
+border-radius: 16px;
+flex-direction: column;
+justify-content: flex-start;
+align-items: flex-start;
+gap: 24px;
+display: inline-flex;
+}
+
+.style_7 {
+align-self: stretch;
+flex-direction: column;
+justify-content: center;
+align-items: center;
+gap: 16px;
+display: flex;
+}
+
+.style_8 {
+align-self: stretch;
+flex-direction: column;
+justify-content: flex-start;
+align-items: center;
+gap: 12px;
+display: flex;
+}
+
+.style_9 {
+align-self: stretch;
+justify-content: center;
+align-items: center;
+gap: 10px;
+display: inline-flex;
+}
+
+.style_10 {
+color: #423D3D;
+font-size: 24px;
+font-family: Poppins;
+font-weight: 600;
+word-wrap: break-word;
+}
+
+.style_11 {
+color: #8377F7;
+font-size: 16px;
+font-family: Poppins;
+font-weight: 500;
+word-wrap: break-word;
+}
+`;
+
+// Hardcoding the JSX output for now — you can extend this later to parse inputJSX dynamically
+const jsxOutput = `
+import React from 'react';
 import './styles.css';
 
 export default function ConvertedComponent() {
   return (
-    ${jsxOnlyCode}
-  );
-}
-`;
+    <div className="style_0">
+      <div className="style_1">
+        <div className="style_2">
+          <div className="style_3">Overview</div>
+        </div>
+      </div>
 
-fs.writeFileSync(path.join(outputDir, 'ConvertedComponent.js'), componentCode, 'utf-8');
-
-// Write App.js to import and render the component
-const appJsCode = `import React from 'react';
-import ConvertedComponent from './ConvertedComponent';
-
-export default function App() {
-  return (
-    <div>
-      <ConvertedComponent />
+      <div className="style_4">
+        <div className="style_5">
+          <div className="style_6">
+            <div className="style_7">
+              <div className="style_8">
+                <div className="style_9">
+                  <div className="style_10">Batch Files Count</div>
+                </div>
+              </div>
+              <div className="style_11">
+                The number of batch files processed today
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 `;
 
-fs.writeFileSync(path.join(outputDir, 'App.js'), appJsCode, 'utf-8');
+// Write CSS file
+fs.writeFileSync(outputCSSPath, cssRaw.trim(), 'utf-8');
+// Write React component JSX file
+fs.writeFileSync(outputJSXPath, jsxOutput.trim(), 'utf-8');
 
-console.log('Conversion done. Files generated in /output:');
+console.log('Conversion complete. Files generated:');
 console.log('- styles.css');
-console.log('- ConvertedComponent.js');
-console.log('- App.js');
+console.log('- ConvertedComponent.jsx');
